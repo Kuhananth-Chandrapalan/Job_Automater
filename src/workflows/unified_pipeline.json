@@ -22,7 +22,7 @@
         },
         {
             "parameters": {
-                "url": "https://www.ycombinator.com/jobs/rss"
+                "url": "https://weworkremotely.com/categories/remote-programming-jobs.rss"
             },
             "name": "Fetch RSS",
             "type": "n8n-nodes-base.rssFeedRead",
@@ -34,9 +34,10 @@
         },
         {
             "parameters": {
-                "url": "http://host.docker.internal:8010/normalize",
                 "method": "POST",
+                "url": "http://host.docker.internal:8010/normalize",
                 "sendBody": true,
+                "contentType": "json",
                 "bodyParameters": {
                     "parameters": [
                         {
@@ -54,6 +55,10 @@
                         {
                             "name": "source",
                             "value": "RSS_Feed"
+                        },
+                        {
+                            "name": "company",
+                            "value": "Unknown"
                         }
                     ]
                 },
@@ -69,46 +74,10 @@
         },
         {
             "parameters": {
-                "operation": "lookup",
-                "sheetId": "1Tj-u...",
-                "range": "A:A",
-                "lookupColumn": "job_id",
-                "lookupValue": "={{ $json.job_id }}",
-                "options": {}
-            },
-            "name": "Check DB (Sheet)",
-            "type": "n8n-nodes-base.googleSheets",
-            "typeVersion": 4,
-            "position": [
-                600,
-                0
-            ],
-            "alwaysOutputData": true
-        },
-        {
-            "parameters": {
-                "conditions": {
-                    "boolean": [
-                        {
-                            "value1": "={{ $json.job_id_found }}",
-                            "value2": true
-                        }
-                    ]
-                }
-            },
-            "name": "Is Job New?",
-            "type": "n8n-nodes-base.if",
-            "typeVersion": 1,
-            "position": [
-                800,
-                0
-            ]
-        },
-        {
-            "parameters": {
-                "url": "http://host.docker.internal:8010/classify",
                 "method": "POST",
+                "url": "http://host.docker.internal:8010/classify",
                 "sendBody": true,
+                "contentType": "json",
                 "bodyParameters": {
                     "parameters": [
                         {
@@ -123,28 +92,29 @@
             "type": "n8n-nodes-base.httpRequest",
             "typeVersion": 4.1,
             "position": [
-                1000,
-                -100
+                600,
+                0
             ]
         },
         {
             "parameters": {
-                "url": "http://host.docker.internal:8010/score",
                 "method": "POST",
+                "url": "http://host.docker.internal:8010/score",
                 "sendBody": true,
+                "contentType": "json",
                 "bodyParameters": {
                     "parameters": [
                         {
                             "name": "job_description",
-                            "value": "={{ $json.description }}"
+                            "value": "={{ $('API: Normalize').item.json.description }}"
                         },
                         {
                             "name": "role_title",
-                            "value": "={{ $json.role_title }}"
+                            "value": "={{ $('API: Normalize').item.json.role_title }}"
                         },
                         {
                             "name": "resume_text",
-                            "value": "Experienced Data Scientist with Python, SQL, and Machine Learning skills..."
+                            "value": "Senior Software Engineer with experience in Python, Automation, and APIs."
                         }
                     ]
                 },
@@ -154,23 +124,42 @@
             "type": "n8n-nodes-base.httpRequest",
             "typeVersion": 4.1,
             "position": [
-                1200,
-                -100
+                800,
+                0
             ]
         },
         {
             "parameters": {
-                "operation": "append",
-                "sheetId": "1Tj-u...",
-                "range": "A:T",
+                "operation": "upsert",
+                "mode": "from",
+                "documentId": {
+                    "__rl": true,
+                    "mode": "list",
+                    "value": "YOUR_SHEET_ID_HERE"
+                },
+                "sheetName": {
+                    "__rl": true,
+                    "mode": "list",
+                    "value": "Sheet1"
+                },
+                "columns": {
+                    "mappingMode": "defineBelow",
+                    "value": {
+                        "job_id": "={{ $('API: Normalize').item.json.job_id }}",
+                        "ats_score": "={{ $json.score }}"
+                    },
+                    "matchingColumns": [
+                        "job_id"
+                    ]
+                },
                 "options": {}
             },
             "name": "Write to Sheet",
             "type": "n8n-nodes-base.googleSheets",
-            "typeVersion": 4,
+            "typeVersion": 4.3,
             "position": [
-                1400,
-                -100
+                1000,
+                0
             ]
         }
     ],
@@ -198,28 +187,6 @@
             ]
         },
         "API: Normalize": {
-            "main": [
-                [
-                    {
-                        "node": "Check DB (Sheet)",
-                        "type": "main",
-                        "index": 0
-                    }
-                ]
-            ]
-        },
-        "Check DB (Sheet)": {
-            "main": [
-                [
-                    {
-                        "node": "Is Job New?",
-                        "type": "main",
-                        "index": 0
-                    }
-                ]
-            ]
-        },
-        "Is Job New?": {
             "main": [
                 [
                     {

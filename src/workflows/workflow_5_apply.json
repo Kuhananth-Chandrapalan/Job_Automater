@@ -1,70 +1,92 @@
 {
+    "name": "Job Application Sender",
     "nodes": [
         {
-            "name": "Cron",
-            "type": "n8n-nodes-base.cron",
             "parameters": {
-                "mode": "everyX",
-                "value": 1,
-                "unit": "hours"
-            }
+                "rule": {
+                    "interval": [
+                        {
+                            "field": "hours",
+                            "hoursInterval": 1
+                        }
+                    ]
+                }
+            },
+            "name": "Every Hour",
+            "type": "n8n-nodes-base.scheduleTrigger",
+            "typeVersion": 1.1,
+            "position": [
+                0,
+                0
+            ],
+            "id": "schedule-trigger"
         },
         {
+            "parameters": {
+                "operation": "get",
+                "range": "A:Z",
+                "options": {}
+            },
             "name": "Get Ready Jobs",
             "type": "n8n-nodes-base.googleSheets",
-            "parameters": {
-                "operation": "read",
-                "sheetId": "YOUR_SHEET_ID",
-                "filters": {
-                    "status": [
-                        "Ready (Email)"
-                    ]
-                },
-                "options": {
-                    "returnAll": false,
-                    "limit": 1
-                }
-            }
+            "typeVersion": 4.3,
+            "position": [
+                220,
+                0
+            ],
+            "id": "read-sheet"
         },
         {
-            "name": "Generate Letter (Free)",
-            "type": "n8n-nodes-base.httpRequest",
             "parameters": {
-                "url": "http://host.docker.internal:8010/generate_cover_letter",
                 "method": "POST",
-                "bodyParametersUi": {
-                    "parameter": [
+                "url": "http://host.docker.internal:8010/generate_cover_letter",
+                "sendBody": true,
+                "bodyParameters": {
+                    "parameters": [
                         {
                             "name": "company",
-                            "value": "={{ $node[\"Get Ready Jobs\"].json[\"company\"] }}"
+                            "value": "={{ $json.company }}"
                         },
                         {
                             "name": "role_title",
-                            "value": "={{ $node[\"Get Ready Jobs\"].json[\"role_title\"] }}"
+                            "value": "={{ $json.role_title }}"
                         },
                         {
                             "name": "my_name",
                             "value": "Kuhananth"
                         }
                     ]
-                }
-            }
+                },
+                "options": {}
+            },
+            "name": "Generate Letter",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.1,
+            "position": [
+                440,
+                0
+            ],
+            "id": "generate-letter"
         },
         {
+            "parameters": {
+                "sendTo": "={{ $('Get Ready Jobs').item.json.contact_email }}",
+                "subject": "Application for {{ $json.role_title }}",
+                "message": "={{ $json.content }}",
+                "options": {}
+            },
             "name": "Send Email",
             "type": "n8n-nodes-base.gmail",
-            "parameters": {
-                "resource": "message",
-                "operation": "send",
-                "toEmail": "={{ $node[\"Get Ready Jobs\"].json[\"contact_email\"] }}",
-                "subject": "Application for {{ $node[\"Get Ready Jobs\"].json[\"role_title\"] }}",
-                "text": "={{ $json[\"content\"] }}",
-                "attachments": []
-            }
+            "typeVersion": 2.1,
+            "position": [
+                660,
+                0
+            ],
+            "id": "send-email"
         }
     ],
     "connections": {
-        "Cron": {
+        "Every Hour": {
             "main": [
                 [
                     {
@@ -79,14 +101,14 @@
             "main": [
                 [
                     {
-                        "node": "Generate Letter (Free)",
+                        "node": "Generate Letter",
                         "type": "main",
                         "index": 0
                     }
                 ]
             ]
         },
-        "Generate Letter (Free)": {
+        "Generate Letter": {
             "main": [
                 [
                     {
