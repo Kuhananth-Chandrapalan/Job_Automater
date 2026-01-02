@@ -1,0 +1,101 @@
+{
+    "nodes": [
+        {
+            "name": "Cron",
+            "type": "n8n-nodes-base.cron",
+            "parameters": {
+                "mode": "everyX",
+                "value": 1,
+                "unit": "hours"
+            }
+        },
+        {
+            "name": "Get Ready Jobs",
+            "type": "n8n-nodes-base.googleSheets",
+            "parameters": {
+                "operation": "read",
+                "sheetId": "YOUR_SHEET_ID",
+                "filters": {
+                    "status": [
+                        "Ready (Email)"
+                    ]
+                },
+                "options": {
+                    "returnAll": false,
+                    "limit": 1
+                }
+            }
+        },
+        {
+            "name": "Generate Letter (Free)",
+            "type": "n8n-nodes-base.httpRequest",
+            "parameters": {
+                "url": "http://host.docker.internal:8010/generate_cover_letter",
+                "method": "POST",
+                "bodyParametersUi": {
+                    "parameter": [
+                        {
+                            "name": "company",
+                            "value": "={{ $node[\"Get Ready Jobs\"].json[\"company\"] }}"
+                        },
+                        {
+                            "name": "role_title",
+                            "value": "={{ $node[\"Get Ready Jobs\"].json[\"role_title\"] }}"
+                        },
+                        {
+                            "name": "my_name",
+                            "value": "Kuhananth"
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "name": "Send Email",
+            "type": "n8n-nodes-base.gmail",
+            "parameters": {
+                "resource": "message",
+                "operation": "send",
+                "toEmail": "={{ $node[\"Get Ready Jobs\"].json[\"contact_email\"] }}",
+                "subject": "Application for {{ $node[\"Get Ready Jobs\"].json[\"role_title\"] }}",
+                "text": "={{ $json[\"content\"] }}",
+                "attachments": []
+            }
+        }
+    ],
+    "connections": {
+        "Cron": {
+            "main": [
+                [
+                    {
+                        "node": "Get Ready Jobs",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Get Ready Jobs": {
+            "main": [
+                [
+                    {
+                        "node": "Generate Letter (Free)",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Generate Letter (Free)": {
+            "main": [
+                [
+                    {
+                        "node": "Send Email",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        }
+    }
+}

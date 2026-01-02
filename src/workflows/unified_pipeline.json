@@ -1,0 +1,256 @@
+{
+    "name": "Unified Job Automation Pipeline",
+    "nodes": [
+        {
+            "parameters": {
+                "rule": {
+                    "interval": [
+                        {
+                            "field": "minutes",
+                            "minutesInterval": 15
+                        }
+                    ]
+                }
+            },
+            "name": "Every 15 Mins",
+            "type": "n8n-nodes-base.scheduleTrigger",
+            "typeVersion": 1.1,
+            "position": [
+                0,
+                0
+            ]
+        },
+        {
+            "parameters": {
+                "url": "https://www.ycombinator.com/jobs/rss"
+            },
+            "name": "Fetch RSS",
+            "type": "n8n-nodes-base.rssFeedRead",
+            "typeVersion": 1,
+            "position": [
+                200,
+                0
+            ]
+        },
+        {
+            "parameters": {
+                "url": "http://host.docker.internal:8010/normalize",
+                "method": "POST",
+                "sendBody": true,
+                "bodyParameters": {
+                    "parameters": [
+                        {
+                            "name": "title",
+                            "value": "={{ $json.title }}"
+                        },
+                        {
+                            "name": "url",
+                            "value": "={{ $json.link }}"
+                        },
+                        {
+                            "name": "description",
+                            "value": "={{ $json.contentSnippet || $json.content }}"
+                        },
+                        {
+                            "name": "source",
+                            "value": "RSS_Feed"
+                        }
+                    ]
+                },
+                "options": {}
+            },
+            "name": "API: Normalize",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.1,
+            "position": [
+                400,
+                0
+            ]
+        },
+        {
+            "parameters": {
+                "operation": "lookup",
+                "sheetId": "1Tj-u...",
+                "range": "A:A",
+                "lookupColumn": "job_id",
+                "lookupValue": "={{ $json.job_id }}",
+                "options": {}
+            },
+            "name": "Check DB (Sheet)",
+            "type": "n8n-nodes-base.googleSheets",
+            "typeVersion": 4,
+            "position": [
+                600,
+                0
+            ],
+            "alwaysOutputData": true
+        },
+        {
+            "parameters": {
+                "conditions": {
+                    "boolean": [
+                        {
+                            "value1": "={{ $json.job_id_found }}",
+                            "value2": true
+                        }
+                    ]
+                }
+            },
+            "name": "Is Job New?",
+            "type": "n8n-nodes-base.if",
+            "typeVersion": 1,
+            "position": [
+                800,
+                0
+            ]
+        },
+        {
+            "parameters": {
+                "url": "http://host.docker.internal:8010/classify",
+                "method": "POST",
+                "sendBody": true,
+                "bodyParameters": {
+                    "parameters": [
+                        {
+                            "name": "role_title",
+                            "value": "={{ $json.role_title }}"
+                        }
+                    ]
+                },
+                "options": {}
+            },
+            "name": "API: Classify",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.1,
+            "position": [
+                1000,
+                -100
+            ]
+        },
+        {
+            "parameters": {
+                "url": "http://host.docker.internal:8010/score",
+                "method": "POST",
+                "sendBody": true,
+                "bodyParameters": {
+                    "parameters": [
+                        {
+                            "name": "job_description",
+                            "value": "={{ $json.description }}"
+                        },
+                        {
+                            "name": "role_title",
+                            "value": "={{ $json.role_title }}"
+                        },
+                        {
+                            "name": "resume_text",
+                            "value": "Experienced Data Scientist with Python, SQL, and Machine Learning skills..."
+                        }
+                    ]
+                },
+                "options": {}
+            },
+            "name": "API: ATS Score",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.1,
+            "position": [
+                1200,
+                -100
+            ]
+        },
+        {
+            "parameters": {
+                "operation": "append",
+                "sheetId": "1Tj-u...",
+                "range": "A:T",
+                "options": {}
+            },
+            "name": "Write to Sheet",
+            "type": "n8n-nodes-base.googleSheets",
+            "typeVersion": 4,
+            "position": [
+                1400,
+                -100
+            ]
+        }
+    ],
+    "connections": {
+        "Every 15 Mins": {
+            "main": [
+                [
+                    {
+                        "node": "Fetch RSS",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Fetch RSS": {
+            "main": [
+                [
+                    {
+                        "node": "API: Normalize",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "API: Normalize": {
+            "main": [
+                [
+                    {
+                        "node": "Check DB (Sheet)",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Check DB (Sheet)": {
+            "main": [
+                [
+                    {
+                        "node": "Is Job New?",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Is Job New?": {
+            "main": [
+                [
+                    {
+                        "node": "API: Classify",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "API: Classify": {
+            "main": [
+                [
+                    {
+                        "node": "API: ATS Score",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "API: ATS Score": {
+            "main": [
+                [
+                    {
+                        "node": "Write to Sheet",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        }
+    }
+}
