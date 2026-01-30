@@ -1,0 +1,409 @@
+[
+    {
+        "parameters": {
+            "rule": {
+                "interval": [
+                    {
+                        "field": "minutes",
+                        "minutesInterval": 15
+                    }
+                ]
+            }
+        },
+        "name": "Every 15 Mins",
+        "type": "n8n-nodes-base.scheduleTrigger",
+        "typeVersion": 1.1,
+        "position": [
+            0,
+            -1136
+        ],
+        "id": "fc97d48e-74b4-4c8a-9d0a-d7cea8dc4253",
+        "disabled": true
+    },
+    {
+        "parameters": {
+            "url": "https://weworkremotely.com/categories/remote-programming-jobs.rss",
+            "options": {}
+        },
+        "name": "Fetch RSS",
+        "type": "n8n-nodes-base.rssFeedRead",
+        "typeVersion": 1,
+        "position": [
+            0,
+            -800
+        ],
+        "id": "888cefeb-aaef-437e-9cf4-bbcdd88b9df5",
+        "disabled": true
+    },
+    {
+        "parameters": {
+            "method": "POST",
+            "url": "http://host.docker.internal:8010/normalize",
+            "sendBody": true,
+            "bodyParameters": {
+                "parameters": [
+                    {
+                        "name": "title",
+                        "value": "={{ $json.title }}"
+                    },
+                    {
+                        "name": "url",
+                        "value": "={{ $json.link || $json.url || $json.guid }}"
+                    },
+                    {
+                        "name": "description",
+                        "value": "={{ $json.content }}"
+                    },
+                    {
+                        "name": "source",
+                        "value": "RSS Feed"
+                    },
+                    {
+                        "name": "company",
+                        "value": "Unknown"
+                    },
+                    {
+                        "name": "pubDate",
+                        "value": "={{ $json.pubDate }}"
+                    }
+                ]
+            },
+            "options": {}
+        },
+        "name": "API: Normalize",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.1,
+        "position": [
+            0,
+            -560
+        ],
+        "id": "51e5a89c-5668-4964-b0ac-3ce3c968c008",
+        "disabled": true
+    },
+    {
+        "parameters": {
+            "method": "POST",
+            "url": "http://host.docker.internal:8010/classify",
+            "sendBody": true,
+            "bodyParameters": {
+                "parameters": [
+                    {
+                        "name": "role_title",
+                        "value": "={{ $json.role_title }}"
+                    }
+                ]
+            },
+            "options": {}
+        },
+        "name": "API: Classify",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.1,
+        "position": [
+            0,
+            0
+        ],
+        "id": "b1e0790f-0f69-4b44-a544-abdc77fe61af",
+        "disabled": true
+    },
+    {
+        "parameters": {
+            "method": "POST",
+            "url": "http://host.docker.internal:8010/score",
+            "sendBody": true,
+            "bodyParameters": {
+                "parameters": [
+                    {
+                        "name": "job_description",
+                        "value": "={{ $('API: Normalize').item.json.description }}"
+                    },
+                    {
+                        "name": "role_title",
+                        "value": "={{ $('API: Normalize').item.json.role_title }}"
+                    },
+                    {
+                        "name": "resume_text",
+                        "value": ""
+                    }
+                ]
+            },
+            "options": {}
+        },
+        "name": "API: ATS Score",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.1,
+        "position": [
+            0,
+            208
+        ],
+        "id": "75d63927-bff8-4468-8e04-55a57e6eb001",
+        "disabled": true
+    },
+    {
+        "parameters": {
+            "operation": "appendOrUpdate",
+            "documentId": {
+                "__rl": true,
+                "value": "1uiUR0qoYL3QfZJmpwneBzZArWL6MAfMQtlnFoV7OXiw",
+                "mode": "list",
+                "cachedResultName": "Job Automation Master",
+                "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1uiUR0qoYL3QfZJmpwneBzZArWL6MAfMQtlnFoV7OXiw/edit?usp=drivesdk"
+            },
+            "sheetName": {
+                "__rl": true,
+                "value": "gid=0",
+                "mode": "list",
+                "cachedResultName": "Sheet1",
+                "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1uiUR0qoYL3QfZJmpwneBzZArWL6MAfMQtlnFoV7OXiw/edit#gid=0"
+            },
+            "columns": {
+                "mappingMode": "defineBelow",
+                "value": {
+                    "job_id": "={{ $('API: Normalize').item.json.job_id }}",
+                    "company": "={{ $('API: Normalize').item.json.company }}",
+                    "location": "={{ $('API: Normalize').item.json.location }}",
+                    "role_title": "={{ $('API: Normalize').item.json.role_title }}",
+                    "status": "={{ $('API: Normalize').item.json.status }}",
+                    "apply_method": "={{ $('API: Normalize').item.json.apply_method }}",
+                    "date_found": "={{ $('API: Normalize').item.json.date_found }}",
+                    "score": "=",
+                    "domain": "={{ $('API: Classify').item.json.domain }}",
+                    "level": "={{ $('API: Classify').item.json.level }}",
+                    "priority_score": "={{ $('API: Classify').item.json.priority_score }}",
+                    "missing_keywords": "={{ $json.missing_keywords }}",
+                    "details": "={{ $json.details }}",
+                    "ats_score": "={{ $json.score }}",
+                    "job_url": "={{ $('API: Normalize').item.json.job_url }}"
+                },
+                "matchingColumns": [
+                    "job_id"
+                ],
+                "schema": [
+                    {
+                        "id": "job_id",
+                        "displayName": "job_id",
+                        "required": false,
+                        "defaultMatch": false,
+                        "display": true,
+                        "type": "string",
+                        "canBeUsedToMatch": true,
+                        "removed": false
+                    },
+                    {
+                        "id": "date_found",
+                        "displayName": "date_found",
+                        "required": false,
+                        "defaultMatch": false,
+                        "display": true,
+                        "type": "string",
+                        "canBeUsedToMatch": true
+                    },
+                    {
+                        "id": "company",
+                        "displayName": "company",
+                        "required": false,
+                        "defaultMatch": false,
+                        "display": true,
+                        "type": "string",
+                        "canBeUsedToMatch": true
+                    },
+                    {
+                        "id": "role_title",
+                        "displayName": "role_title",
+                        "required": false,
+                        "defaultMatch": false,
+                        "display": true,
+                        "type": "string",
+                        "canBeUsedToMatch": true
+                    },
+                    {
+                        "id": "location",
+                        "displayName": "location",
+                        "required": false,
+                        "defaultMatch": false,
+                        "display": true,
+                        "type": "string",
+                        "canBeUsedToMatch": true
+                    },
+                    {
+                        "id": "domain",
+                        "displayName": "domain",
+                        "required": false,
+                        "defaultMatch": false,
+                        "display": true,
+                        "type": "string",
+                        "canBeUsedToMatch": true
+                    },
+                    {
+                        "id": "level",
+                        "displayName": "level",
+                        "required": false,
+                        "defaultMatch": false,
+                        "display": true,
+                        "type": "string",
+                        "canBeUsedToMatch": true
+                    },
+                    {
+                        "id": "priority_score",
+                        "displayName": "priority_score",
+                        "required": false,
+                        "defaultMatch": false,
+                        "display": true,
+                        "type": "string",
+                        "canBeUsedToMatch": true
+                    },
+                    {
+                        "id": "ats_score",
+                        "displayName": "ats_score",
+                        "required": false,
+                        "defaultMatch": false,
+                        "display": true,
+                        "type": "string",
+                        "canBeUsedToMatch": true
+                    },
+                    {
+                        "id": "job_url",
+                        "displayName": "job_url",
+                        "required": false,
+                        "defaultMatch": false,
+                        "display": true,
+                        "type": "string",
+                        "canBeUsedToMatch": true
+                    },
+                    {
+                        "id": "status",
+                        "displayName": "status",
+                        "required": false,
+                        "defaultMatch": false,
+                        "display": true,
+                        "type": "string",
+                        "canBeUsedToMatch": true
+                    },
+                    {
+                        "id": "apply_method",
+                        "displayName": "apply_method",
+                        "required": false,
+                        "defaultMatch": false,
+                        "display": true,
+                        "type": "string",
+                        "canBeUsedToMatch": true
+                    },
+                    {
+                        "id": "contact_email",
+                        "displayName": "contact_email",
+                        "required": false,
+                        "defaultMatch": false,
+                        "display": true,
+                        "type": "string",
+                        "canBeUsedToMatch": true
+                    },
+                    {
+                        "id": "score",
+                        "displayName": "score",
+                        "required": false,
+                        "defaultMatch": false,
+                        "display": true,
+                        "type": "string",
+                        "canBeUsedToMatch": true,
+                        "removed": false
+                    },
+                    {
+                        "id": "missing_keywords",
+                        "displayName": "missing_keywords",
+                        "required": false,
+                        "defaultMatch": false,
+                        "display": true,
+                        "type": "string",
+                        "canBeUsedToMatch": true,
+                        "removed": false
+                    },
+                    {
+                        "id": "details",
+                        "displayName": "details",
+                        "required": false,
+                        "defaultMatch": false,
+                        "display": true,
+                        "type": "string",
+                        "canBeUsedToMatch": true,
+                        "removed": false
+                    }
+                ],
+                "attemptToConvertTypes": false,
+                "convertFieldsToString": false
+            },
+            "options": {}
+        },
+        "name": "Write to Sheet",
+        "type": "n8n-nodes-base.googleSheets",
+        "typeVersion": 4,
+        "position": [
+            0,
+            400
+        ],
+        "id": "8ac76b8a-9c23-4c8f-8ef1-9209bc9cf0c2",
+        "credentials": {
+            "googleSheetsOAuth2Api": {
+                "id": "zh6yjRQcHCRnYfCN",
+                "name": "Google Sheets account"
+            }
+        }
+    },
+    {
+        "parameters": {
+            "url": "https://remoteok.com/rss",
+            "options": {}
+        },
+        "name": "Fetch RSS1",
+        "type": "n8n-nodes-base.rssFeedRead",
+        "typeVersion": 1,
+        "position": [
+            0,
+            -800
+        ],
+        "id": "5b656d92-4342-4cef-8a55-182249053867",
+        "disabled": true
+    },
+    {
+        "parameters": {
+            "url": "https://hnrss.org/whoishiring/jobs",
+            "options": {}
+        },
+        "name": "Fetch RSS2",
+        "type": "n8n-nodes-base.rssFeedRead",
+        "typeVersion": 1,
+        "position": [
+            0,
+            -800
+        ],
+        "id": "4dcfcb25-b67a-4a24-a479-2c9462eeb83d",
+        "disabled": true
+    },
+    {
+        "parameters": {
+            "url": "https://remotive.com/remote-jobs/feed",
+            "options": {}
+        },
+        "name": "Fetch RSS4",
+        "type": "n8n-nodes-base.rssFeedRead",
+        "typeVersion": 1,
+        "position": [
+            0,
+            -800
+        ],
+        "id": "725898c4-def0-46dd-b5c7-d9b680364cb2",
+        "disabled": true
+    },
+    {
+        "parameters": {
+            "numberInputs": 4
+        },
+        "type": "n8n-nodes-base.merge",
+        "typeVersion": 3.2,
+        "position": [
+            0,
+            -368
+        ],
+        "id": "543639d8-c7ea-4ceb-97f1-e2515bfbc0ea",
+        "name": "Merge",
+        "disabled": true
+    }
+]

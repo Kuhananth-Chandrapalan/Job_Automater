@@ -24,7 +24,7 @@ class ClassificationRequest(BaseModel):
 
 class ScoreRequest(BaseModel):
     job_description: str
-    resume_text: str
+    resume_text: Optional[str] = None
     role_title: str
 
 class CoverLetterRequest(BaseModel):
@@ -59,9 +59,38 @@ def api_classify(req: ClassificationRequest):
 @app.post("/score")
 def api_score(req: ScoreRequest):
     from ats_scorer import ATSScorer
+    import pypdf
+    
+    # 1. Load Resume Text (from Request or File)
+    resume_text = req.resume_text
+    if not resume_text or not resume_text.strip():
+        # Try reading local PDF
+        resume_path = os.path.join(os.getcwd(), "resume.pdf") 
+        # Note: In docker, this might need to be /data/resume.pdf if mounted there, 
+        # but the script runs on host or container. If running via uvicorn on host, use getcwd.
+        # If running in container with /data mount, we might need to check multiple paths.
+        
+        # Check standard paths
+        possible_paths = ["resume.pdf", "/data/resume.pdf"]
+        for p in possible_paths:
+            if os.path.exists(p):
+                try:
+                    reader = pypdf.PdfReader(p)
+                    extracted_text = ""
+                    for page in reader.pages:
+                        extracted_text += page.extract_text() + "\n"
+                    resume_text = extracted_text
+                    print(f"Loaded resume from {p}")
+                    break
+                except Exception as ex:
+                    print(f"Error reading {p}: {ex}")
+        
+    if not resume_text:
+        raise HTTPException(status_code=400, detail="No resume text provided and could not read local resume.pdf")
+
     scorer = ATSScorer()
     try:
-        return scorer.calculate_score(req.job_description, req.resume_text, req.role_title)
+        return scorer.calculate_score(req.job_description, resume_text, req.role_title)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 

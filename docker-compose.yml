@@ -16,6 +16,7 @@ services:
       - GENERIC_TIMEZONE=Asia/Calcutta
     volumes:
       - n8n_data:/home/node/.n8n
+      - /home/kuhananth/Documents/Job_Automater:/data
     extra_hosts:
       - "host.docker.internal:host-gateway" # Allows n8n to reach the Python API running on the host
 

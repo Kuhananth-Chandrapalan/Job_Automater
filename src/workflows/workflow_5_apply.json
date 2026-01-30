@@ -70,16 +70,32 @@
         },
         {
             "parameters": {
+                "filePath": "/data/resume.pdf",
+                "dataPropertyName": "data"
+            },
+            "name": "Read Resume",
+            "type": "n8n-nodes-base.readBinaryFile",
+            "typeVersion": 1,
+            "position": [
+                660,
+                0
+            ],
+            "id": "read-resume"
+        },
+        {
+            "parameters": {
                 "sendTo": "={{ $('Get Ready Jobs').item.json.contact_email }}",
-                "subject": "Application for {{ $json.role_title }}",
-                "message": "={{ $json.content }}",
-                "options": {}
+                "subject": "Application for {{ $('Generate Letter').item.json.role_title }}",
+                "message": "={{ $('Generate Letter').item.json.content }}",
+                "options": {
+                    "attachments": "data"
+                }
             },
             "name": "Send Email",
             "type": "n8n-nodes-base.gmail",
             "typeVersion": 2.1,
             "position": [
-                660,
+                880,
                 0
             ],
             "id": "send-email"
@@ -109,6 +125,17 @@
             ]
         },
         "Generate Letter": {
+            "main": [
+                [
+                    {
+                        "node": "Read Resume",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Read Resume": {
             "main": [
                 [
                     {
